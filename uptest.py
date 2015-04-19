@@ -89,14 +89,13 @@ def main(username, password, upfile,
 
     if no_chunks:
         with open(upfile, 'rb') as f:
-            file_data = f.read()
-
-        files = {'file': file_data}
-
-        postresp = requests.post(rooturl + upload_url, headers=header, data=params,
-                                 files=files)
+            files = {'file': f}
+            postresp = requests.post(rooturl + upload_url, headers=header, data=params,
+                                     files=files)
 
         print postresp
+        print postresp.text
+        print postresp.url
         # get response as dictionary
         respdict = postresp.json()
         print respdict
