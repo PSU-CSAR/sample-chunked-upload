@@ -25,7 +25,7 @@ def parse_args(argv):
                         help='name of the aoi; default is name of zip file')
     parser.add_argument('-c', '--chunksize', type=int, default=CHUNKSIZE,
                         help='size of upload chunks; default is 4MB')
-    parser.add_argument('--no_chunks', action='store_true',
+    parser.add_argument('--no-chunks', action='store_true',
                         help='upload file in single HTTP POST request; default false')
     # parse the argvs pass in into args
     args = parser.parse_args(argv)
