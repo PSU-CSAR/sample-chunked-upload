@@ -27,6 +27,8 @@ def parse_args(argv):
                         help='size of upload chunks; default is 4MB')
     parser.add_argument('--no-chunks', action='store_true',
                         help='upload file in single HTTP POST request; default false')
+    parser.add_argument('-C', '--comment', required=True, type=str,
+                        help='a comment to add to the AOI')
     # parse the argvs pass in into args
     args = parser.parse_args(argv)
 
@@ -57,7 +59,8 @@ def chunk_file(filepath, blocksize=2**12):
 
 
 def main(username, password, upfile,
-         filename=None, chunksize=CHUNKSIZE, no_chunks=False):
+         filename=None, chunksize=CHUNKSIZE,
+         no_chunks=False, comment=""):
     # POST to get token for username/password
     authparams = {'username': username, 'password': password}
     authresp = requests.post(rooturl + auth_url, data=authparams)
@@ -80,6 +83,9 @@ def main(username, password, upfile,
     if not filename:
         filename = os.path.basename(upfile)
     params = {'filename': filename, 'md5': md5}
+
+    if comment:
+        params["comment"] = comment
 
     # simply GET user's uploads to verify token works
     getresp = requests.get(rooturl + upload_url, headers=header)
