@@ -27,7 +27,7 @@ def parse_args(argv):
                         help='size of upload chunks; default is 4MB')
     parser.add_argument('--no-chunks', action='store_true',
                         help='upload file in single HTTP POST request; default false')
-    parser.add_argument('-C', '--comment', required=True, type=str,
+    parser.add_argument('-C', '--comment', type=str,
                         help='a comment to add to the AOI')
     # parse the argvs pass in into args
     args = parser.parse_args(argv)
