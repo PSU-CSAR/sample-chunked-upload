@@ -3,16 +3,20 @@ import hashlib
 import requests
 import os
 import argparse
+import uuid
 
 
 CHUNKSIZE = 2**22  # 4 MB
-rooturl = "https://webservices.geog.pdx.edu/api/rest/"
-auth_url = 'api-token-auth/'
-upload_url = 'aois/'
+ROOTURL = "https://ebagis.geog.pdx.edu/"
+AUTHURL = 'api/rest/token/'
+UPLOADURL = 'api/rest/aois/'
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description='Upload a zipped AOI to ebagis.')
+    parser = argparse.ArgumentParser(
+        description='Upload a zipped AOI to ebagis.',
+        fromfile_prefix_chars='@'
+    )
 
     parser.add_argument('-u', '--username', required=True, type=str,
                         help='valid ebagis username')
@@ -25,10 +29,17 @@ def parse_args(argv):
                         help='name of the aoi; default is name of zip file')
     parser.add_argument('-c', '--chunksize', type=int, default=CHUNKSIZE,
                         help='size of upload chunks; default is 4MB')
-    parser.add_argument('--no-chunks', action='store_true',
-                        help='upload file in single HTTP POST request; default false')
+    parser.add_argument(
+        '--no-chunks',
+        action='store_true',
+        help='upload file in single HTTP POST request; default false'
+    )
     parser.add_argument('-C', '--comment', type=str,
                         help='a comment to add to the AOI')
+    parser.add_argument('--parent-aoi', type=uuid.UUID,
+                        help='the uuid of the parent AOI record in the DB')
+    parser.add_argument('-r', '--host', type=str, default=ROOTURL,
+                        help='the IP or domain name of the ebagis host')
     # parse the argvs pass in into args
     args = parser.parse_args(argv)
 
@@ -60,10 +71,10 @@ def chunk_file(filepath, blocksize=2**12):
 
 def main(username, password, upfile,
          filename=None, chunksize=CHUNKSIZE,
-         no_chunks=False, comment=""):
+         no_chunks=False, comment="", parent_aoi="", host=ROOTURL):
     # POST to get token for username/password
     authparams = {'username': username, 'password': password}
-    authresp = requests.post(rooturl + auth_url, data=authparams)
+    authresp = requests.post(host + AUTHURL, data=authparams)
     print authresp
 
     # assemble header with Authorization via token
@@ -87,17 +98,20 @@ def main(username, password, upfile,
     if comment:
         params["comment"] = comment
 
+    if parent_aoi:
+        params["parent_object_id"] = parent_aoi
+
     # simply GET user's uploads to verify token works
-    getresp = requests.get(rooturl + upload_url, headers=header)
+    getresp = requests.get(host + UPLOADURL, headers=header)
     # print the response code: 200 is good
     print getresp
-
 
     if no_chunks:
         with open(upfile, 'rb') as f:
             files = {'file': f}
-            postresp = requests.post(rooturl + upload_url, headers=header, data=params,
-                                     files=files)
+            postresp = requests.post(
+                host + UPLOADURL, headers=header, data=params, files=files
+            )
 
         print postresp
         print postresp.text
@@ -125,7 +139,7 @@ def main(username, password, upfile,
 
         # PUT the first chunk to the upload url
         print params
-        postresp = requests.put(rooturl + upload_url, headers=header, data=params,
+        postresp = requests.put(host + UPLOADURL, headers=header, data=params,
                                 files=files)
 
         print postresp
@@ -140,7 +154,8 @@ def main(username, password, upfile,
             offset = respdict['offset']
             # calculate new chunk end byte
             # if calculated value is greater than filesize, just use file size
-            chunkend = chunksize*(index+1) if chunksize*(index+1) < filebytes else filebytes
+            chunkend = chunksize*(index+1) if \
+                chunksize*(index+1) < filebytes else filebytes
             # set Content-Range with new values
             header['Content-Range'] = 'bytes {}-{}/{}'.format(offset,
                                                               chunkend,
@@ -148,8 +163,9 @@ def main(username, password, upfile,
             # files gets new chunk
             files = {'file': chunk}
             # PUT current chunk to upload url from response
-            postresp = requests.put(respdict['url'], headers=header,
-                                files=files)
+            postresp = requests.put(
+                respdict['url'], headers=header, files=files
+            )
 
             print postresp
             respdict = postresp.json()
