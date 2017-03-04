@@ -46,7 +46,7 @@ def parse_args(argv):
     return vars(args)
 
 
-def generate_file_sha1(filepath, blocksize=2**8):
+def generate_file_md5(filepath, blocksize=2**8):
     """find the md5 hash of a file"""
     m = hashlib.md5()
     with open(filepath, "rb") as f:
