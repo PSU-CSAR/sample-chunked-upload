@@ -36,7 +36,8 @@ def parse_args(argv=None):
     )
     parser.add_argument(
         '--no-chunks',
-        action='store_true',
+        action='store_false',
+        dest='use_chunks',
         help='upload file in single HTTP POST request; default false'
     )
     parser.add_argument(
@@ -213,16 +214,19 @@ class UploadTester(object):
             return self._base_url + UPLOADURL
         return self._url
 
-    def upload(self, chunk_upload=True):
-        if chunk_upload:
+    def upload(self, use_chunks=True):
+        if use_chunks:
             while True:
                 try:
-                    self.put_chunk().raise_for_status()
+                    r = self.put_chunk()
+                    print(r.json())
+                    r.raise_for_status()
                 except StopIteration:
                     self.post_complete().raise_for_status()
                     break
         else:
-            self.post_upload().raise_for_status()
+            r = self.post_upload()
+            r.raise_for_status()
 
     def put_chunk(self):
         # add a Content-Range parameter to the header
@@ -230,9 +234,10 @@ class UploadTester(object):
         # and total size of content, in bytes
         header = self.header
         current_position = self.file.tell()
-        chunkend = current_position + self.file.blocksize if \
+        chunksize = current_position + self.file.blocksize if \
             current_position + self.file.blocksize < self.file_length else \
             self.file_length
+        chunkend = chunksize - 1
         header['Content-Range'] = 'bytes {}-{}/{}'.format(current_position,
                                                           chunkend,
                                                           self.file_length)
@@ -253,6 +258,8 @@ class UploadTester(object):
         params['md5'] = self.md5
         resp = requests.post(self.url, headers=self.header, data=params,
                              files={'file': self.file})
+        if not self._url and resp.status_code == requests.codes.ok:
+            self._url = resp.json()['url']
         return resp
 
     def reset(self, new_name=None):
@@ -276,7 +283,7 @@ def main(argv=None):
         use_https=args.use_https,
         ebagis_port=args.port,
     )
-    uploader.upload(chunk_upload=args.no_chunks)
+    uploader.upload(use_chunks=args.use_chunks)
     print('Upload Completed Successfully: {}'.format(uploader.url))
 
 
